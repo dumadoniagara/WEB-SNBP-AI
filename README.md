@@ -1,36 +1,76 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# SNBP·AI — Web Client
 
-## Getting Started
+A modern, mobile-responsive web client for the **SNBP-AI** UTBK drilling
+platform. Brings the question bank (previously WhatsApp-only) to the browser:
+a marketing landing page, authentication, and an interactive drilling
+experience with instant explanations.
 
-First, run the development server:
+Built with **Next.js 16 (App Router)**, **React 19**, **TypeScript**, and
+**Tailwind CSS v4**.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## Architecture
+
+The app uses a **Backend-for-Frontend (BFF)** pattern. The browser never talks
+to the Spring backend directly — it calls our own Next.js Route Handlers, which
+proxy to the backend. This keeps the JWT in an **httpOnly cookie** (not exposed
+to client JS) and sidesteps CORS entirely.
+
+```
+Browser ──> Next.js Route Handlers (/api/*) ──> Spring Boot backend (:8080/api)
+              │
+              └─ JWT stored in httpOnly cookie (snbp_token)
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+| Path | Purpose |
+|------|---------|
+| `src/lib/api.ts` | Server-side typed client for the Spring backend |
+| `src/lib/auth.ts` | Session cookie helpers + JWT claim decoding |
+| `src/lib/types.ts` | TypeScript types mirroring the backend DTOs |
+| `src/proxy.ts` | Edge proxy (formerly middleware) — route auth gating |
+| `src/app/api/*` | BFF route handlers (login, register, logout, questions) |
+| `src/app/page.tsx` | Public landing page (pulls live topics, static fallback) |
+| `src/app/login`, `src/app/register` | Authentication |
+| `src/app/dashboard` | Drill configuration (materi / difficulty / count) |
+| `src/app/drill` | Interactive drilling session + results |
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Pages
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- **Landing (`/`)** — hero, features, how-it-works, live materi showcase, CTAs.
+  Logged-in users are redirected to the dashboard.
+- **Login / Register (`/login`, `/register`)** — registration auto-logs-in.
+- **Dashboard (`/dashboard`)** — pick sub-test, difficulty, and question count.
+- **Drilling (`/drill`)** — answer questions one-by-one with instant
+  correct/incorrect feedback and explanations, then a score + review screen.
 
-## Learn More
+Routes `/dashboard` and `/drill` require a session; `/login` and `/register`
+redirect away if already authenticated. Enforced in `src/proxy.ts`.
 
-To learn more about Next.js, take a look at the following resources:
+## Getting started
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Requires the SNBP-AI backend running (default `http://localhost:8080/api`).
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+# 1. Configure the backend URL (defaults shown)
+echo "BACKEND_API_URL=http://localhost:8080/api" > .env.local
 
-## Deploy on Vercel
+# 2. Install & run
+npm install
+npm run dev          # http://localhost:3000
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+# Production
+npm run build && npm start
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Environment variables
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `BACKEND_API_URL` | `http://localhost:8080/api` | Base URL of the Spring backend (server-side only) |
+
+## Backend endpoints consumed
+
+- `POST /auth/login` → `{ accessToken }`
+- `POST /users` → register
+- `GET /topics` → TPS / Literasi hierarchy with sub-tests
+- `GET /questions/random?count=&subTestId=&difficulty=` → drilling questions
+# WEB-SNBP-AI
