@@ -264,8 +264,9 @@ function FinalCta() {
             <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
               <ButtonLink
                 href="/register"
+                variant="secondary"
                 size="lg"
-                className="w-full bg-white text-brand-700 shadow-none hover:bg-brand-50 sm:w-auto"
+                className="w-full sm:w-auto"
               >
                 Daftar Gratis Sekarang
               </ButtonLink>
