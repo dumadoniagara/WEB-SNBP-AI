@@ -1,0 +1,41 @@
+# Production deployment for the SNBP-AI web frontend.
+#
+# The frontend's BFF (Next.js route handlers) talks to the Spring backend over
+# the backend's *private* Docker network — the browser never reaches the
+# backend directly. Set BACKEND_API_URL to the backend container's name.
+#
+# Usage on the VPS:
+#   docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+#
+# Prerequisite: the backend stack is already running. Find its network with
+#   docker network ls   # e.g. "snbp-ai_default"
+# and set BACKEND_NETWORK below (defaults to snbp-ai_default).
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: snbp-ai-web
+    environment:
+      NODE_ENV: production
+      # Backend container name + context-path, reachable on the shared network.
+      BACKEND_API_URL: ${BACKEND_API_URL:-http://snbp-ai-app:8080/api}
+    ports:
+      # Bind to localhost only — Nginx on the host terminates TLS and proxies in.
+      - "127.0.0.1:3000:3000"
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+        reservations:
+          memory: 256m
+    networks:
+      - backend
+
+# Join the backend stack's existing network so we can resolve "snbp-ai-app".
+networks:
+  backend:
+    external: true
+    name: ${BACKEND_NETWORK:-snbp-ai_default}
