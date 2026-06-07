@@ -37,8 +37,10 @@ export function AuthShell({
       </div>
 
       {/* Brand side */}
-      <div className="relative hidden overflow-hidden bg-gradient-to-br from-brand-600 via-brand-700 to-violet-800 lg:block">
+      <div className="animate-gradient relative hidden overflow-hidden bg-gradient-to-br from-brand-600 via-violet-700 to-brand-800 lg:block">
         <div className="bg-dots absolute inset-0 opacity-20" />
+        <div className="animate-float absolute -right-10 top-24 h-48 w-48 rounded-full bg-white/10 blur-2xl" />
+        <div className="animate-float absolute -left-10 bottom-24 h-56 w-56 rounded-full bg-accent-400/20 blur-3xl" style={{ animationDelay: "-2.5s" }} />
         <div className="relative flex h-full flex-col justify-between p-12 text-white">
           <div />
           <div className="max-w-md">

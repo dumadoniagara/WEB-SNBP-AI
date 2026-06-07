@@ -1,8 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Button, ButtonLink } from "@/components/ui/Button";
-import { cn } from "@/lib/utils";
+import { Confetti } from "@/components/ui/Confetti";
+import { CountUp } from "@/components/ui/CountUp";
+import { cn, EASE_OUT } from "@/lib/utils";
 import type { Question } from "@/lib/types";
 
 interface Props {
@@ -29,6 +32,7 @@ export function DrillSession({ count, subTestId, difficulty }: Props) {
   const [status, setStatus] = useState<Status>("loading");
   const [questions, setQuestions] = useState<Question[]>([]);
   const [current, setCurrent] = useState(0);
+  const [direction, setDirection] = useState(1);
   // questionId -> selected optionKey
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [revealed, setRevealed] = useState<Record<number, boolean>>({});
@@ -53,6 +57,7 @@ export function DrillSession({ count, subTestId, difficulty }: Props) {
       }
       setQuestions(data);
       setCurrent(0);
+      setDirection(1);
       setAnswers({});
       setRevealed({});
       setFinished(false);
@@ -77,14 +82,7 @@ export function DrillSession({ count, subTestId, difficulty }: Props) {
   }, 0);
 
   if (finished) {
-    return (
-      <ResultsScreen
-        questions={questions}
-        answers={answers}
-        score={score}
-        onRetry={load}
-      />
-    );
+    return <ResultsScreen questions={questions} answers={answers} score={score} onRetry={load} />;
   }
 
   const q = questions[current];
@@ -100,121 +98,113 @@ export function DrillSession({ count, subTestId, difficulty }: Props) {
     setRevealed((r) => ({ ...r, [q.id]: true }));
   }
 
+  function go(delta: number) {
+    setDirection(delta);
+    setCurrent((c) => Math.min(questions.length - 1, Math.max(0, c + delta)));
+  }
+
   return (
     <div className="space-y-6">
-      <ProgressHeader
-        current={current}
-        total={questions.length}
-        answered={answeredCount}
-      />
+      <ProgressHeader current={current} total={questions.length} answered={answeredCount} />
 
-      <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7 animate-in" key={q.id}>
-        <div className="mb-4 flex flex-wrap items-center gap-2">
-          <span className="rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700">
-            {q.subTestName}
-          </span>
-          <span className={cn("rounded-full px-3 py-1 text-xs font-semibold", DIFF_BADGE[q.difficulty])}>
-            {DIFF_LABEL[q.difficulty] ?? q.difficulty}
-          </span>
-          {q.year && (
-            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-500">
-              {q.year}
-            </span>
-          )}
-        </div>
-
-        <p className="whitespace-pre-line text-base leading-relaxed text-slate-800 sm:text-lg">
-          {q.content}
-        </p>
-        {q.imageUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={q.imageUrl}
-            alt="Ilustrasi soal"
-            className="mt-4 max-h-80 rounded-xl border border-slate-200 object-contain"
-          />
-        )}
-
-        <div className="mt-6 space-y-3">
-          {q.options.map((opt) => {
-            const isPicked = picked === opt.optionKey;
-            const isCorrect = opt.optionKey === correctKey;
-            const state = !isRevealed
-              ? "idle"
-              : isCorrect
-                ? "correct"
-                : isPicked
-                  ? "wrong"
-                  : "muted";
-            return (
-              <button
-                key={opt.id}
-                type="button"
-                onClick={() => choose(opt.optionKey)}
-                disabled={isRevealed}
-                className={cn(
-                  "flex w-full items-start gap-3 rounded-xl border p-4 text-left transition-all",
-                  state === "idle" &&
-                    "border-slate-200 bg-white hover:border-brand-300 hover:bg-brand-50/40",
-                  state === "correct" && "border-emerald-400 bg-emerald-50",
-                  state === "wrong" && "border-red-400 bg-red-50",
-                  state === "muted" && "border-slate-200 bg-white opacity-60",
-                )}
-              >
-                <span
-                  className={cn(
-                    "grid h-8 w-8 shrink-0 place-items-center rounded-lg text-sm font-bold",
-                    state === "idle" && "bg-slate-100 text-slate-600",
-                    state === "correct" && "bg-emerald-500 text-white",
-                    state === "wrong" && "bg-red-500 text-white",
-                    state === "muted" && "bg-slate-100 text-slate-400",
-                  )}
-                >
-                  {opt.optionKey}
+      <div className="relative overflow-hidden">
+        <AnimatePresence mode="wait" custom={direction}>
+          <motion.article
+            key={q.id}
+            custom={direction}
+            variants={{
+              enter: (d: number) => ({ opacity: 0, x: d > 0 ? 60 : -60 }),
+              center: { opacity: 1, x: 0 },
+              exit: (d: number) => ({ opacity: 0, x: d > 0 ? -60 : 60 }),
+            }}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={{ duration: 0.32, ease: EASE_OUT }}
+            className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7"
+          >
+            <div className="mb-4 flex flex-wrap items-center gap-2">
+              <span className="rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700">
+                {q.subTestName}
+              </span>
+              <span className={cn("rounded-full px-3 py-1 text-xs font-semibold", DIFF_BADGE[q.difficulty])}>
+                {DIFF_LABEL[q.difficulty] ?? q.difficulty}
+              </span>
+              {q.year && (
+                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-500">
+                  {q.year}
                 </span>
-                <span className="flex-1 pt-0.5 text-sm text-slate-800">{opt.content}</span>
-                {state === "correct" && <CheckIcon className="mt-1 h-5 w-5 text-emerald-500" />}
-                {state === "wrong" && <XIcon className="mt-1 h-5 w-5 text-red-500" />}
-              </button>
-            );
-          })}
-        </div>
-
-        {isRevealed && (
-          <div className="mt-5 animate-in">
-            <div
-              className={cn(
-                "rounded-xl px-4 py-3 text-sm font-semibold",
-                picked === correctKey
-                  ? "bg-emerald-50 text-emerald-700"
-                  : "bg-red-50 text-red-700",
               )}
-            >
-              {picked === correctKey ? "✓ Jawaban benar!" : `✗ Kurang tepat. Jawaban benar: ${correctKey}`}
             </div>
-            {q.explanation && (
-              <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-brand-600">
-                  Pembahasan
-                </p>
-                <p className="mt-1.5 whitespace-pre-line text-sm leading-relaxed text-slate-700">
-                  {q.explanation}
-                </p>
-              </div>
+
+            <p className="whitespace-pre-line text-base leading-relaxed text-slate-800 sm:text-lg">
+              {q.content}
+            </p>
+            {q.imageUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={q.imageUrl}
+                alt="Ilustrasi soal"
+                className="mt-4 max-h-80 rounded-xl border border-slate-200 object-contain"
+              />
             )}
-            {q.source && (
-              <p className="mt-2 text-xs text-slate-400">Sumber: {q.source}</p>
-            )}
-          </div>
-        )}
-      </article>
+
+            <div className="mt-6 space-y-3">
+              {q.options.map((opt) => (
+                <OptionButton
+                  key={opt.id}
+                  optionKey={opt.optionKey}
+                  content={opt.content}
+                  revealed={isRevealed}
+                  isPicked={picked === opt.optionKey}
+                  isCorrect={opt.optionKey === correctKey}
+                  onClick={() => choose(opt.optionKey)}
+                />
+              ))}
+            </div>
+
+            <AnimatePresence>
+              {isRevealed && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.35, ease: "easeOut" }}
+                  className="mt-5 overflow-hidden"
+                >
+                  <motion.div
+                    initial={{ scale: 0.96, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ delay: 0.05, type: "spring", stiffness: 260, damping: 18 }}
+                    className={cn(
+                      "rounded-xl px-4 py-3 text-sm font-semibold",
+                      picked === correctKey ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700",
+                    )}
+                  >
+                    {picked === correctKey
+                      ? "✓ Jawaban benar!"
+                      : `✗ Kurang tepat. Jawaban benar: ${correctKey}`}
+                  </motion.div>
+                  {q.explanation && (
+                    <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-brand-600">
+                        Pembahasan
+                      </p>
+                      <p className="mt-1.5 whitespace-pre-line text-sm leading-relaxed text-slate-700">
+                        {q.explanation}
+                      </p>
+                    </div>
+                  )}
+                  {q.source && <p className="mt-2 text-xs text-slate-400">Sumber: {q.source}</p>}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.article>
+        </AnimatePresence>
+      </div>
 
       <div className="flex items-center justify-between gap-3">
-        <Button
-          variant="outline"
-          onClick={() => setCurrent((c) => Math.max(0, c - 1))}
-          disabled={current === 0}
-        >
+        <Button variant="outline" onClick={() => go(-1)} disabled={current === 0}>
           ← Sebelumnya
         </Button>
 
@@ -223,12 +213,92 @@ export function DrillSession({ count, subTestId, difficulty }: Props) {
             Selesai &amp; Lihat Skor
           </Button>
         ) : (
-          <Button onClick={() => setCurrent((c) => Math.min(questions.length - 1, c + 1))}>
-            Selanjutnya →
-          </Button>
+          <Button onClick={() => go(1)}>Selanjutnya →</Button>
         )}
       </div>
     </div>
+  );
+}
+
+/* ----------------------------- Option button -------------------------- */
+
+function OptionButton({
+  optionKey,
+  content,
+  revealed,
+  isPicked,
+  isCorrect,
+  onClick,
+}: {
+  optionKey: string;
+  content: string;
+  revealed: boolean;
+  isPicked: boolean;
+  isCorrect: boolean;
+  onClick: () => void;
+}) {
+  const reduce = useReducedMotion();
+  const state = !revealed ? "idle" : isCorrect ? "correct" : isPicked ? "wrong" : "muted";
+
+  const animate =
+    reduce || !revealed
+      ? {}
+      : state === "correct"
+        ? { scale: [1, 1.035, 1] }
+        : state === "wrong"
+          ? { x: [0, -7, 7, -5, 5, 0] }
+          : {};
+
+  return (
+    <motion.button
+      type="button"
+      onClick={onClick}
+      disabled={revealed}
+      animate={animate}
+      transition={{ duration: 0.42 }}
+      whileHover={state === "idle" && !reduce ? { scale: 1.01 } : undefined}
+      whileTap={state === "idle" && !reduce ? { scale: 0.985 } : undefined}
+      className={cn(
+        "flex w-full items-start gap-3 rounded-xl border p-4 text-left transition-colors",
+        state === "idle" && "border-slate-200 bg-white hover:border-brand-300 hover:bg-brand-50/40",
+        state === "correct" && "border-emerald-400 bg-emerald-50",
+        state === "wrong" && "border-red-400 bg-red-50",
+        state === "muted" && "border-slate-200 bg-white opacity-60",
+      )}
+    >
+      <span
+        className={cn(
+          "grid h-8 w-8 shrink-0 place-items-center rounded-lg text-sm font-bold transition-colors",
+          state === "idle" && "bg-slate-100 text-slate-600",
+          state === "correct" && "bg-emerald-500 text-white",
+          state === "wrong" && "bg-red-500 text-white",
+          state === "muted" && "bg-slate-100 text-slate-400",
+        )}
+      >
+        {optionKey}
+      </span>
+      <span className="flex-1 pt-0.5 text-sm text-slate-800">{content}</span>
+      {state === "correct" && (
+        <motion.span
+          initial={{ scale: 0, rotate: -30 }}
+          animate={{ scale: 1, rotate: 0 }}
+          transition={{ type: "spring", stiffness: 320, damping: 14 }}
+          className="mt-1"
+        >
+          <CheckIcon className="h-5 w-5 text-emerald-500" />
+        </motion.span>
+      )}
+      {state === "wrong" && (
+        <motion.span
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ type: "spring", stiffness: 320, damping: 14 }}
+          className="mt-1"
+        >
+          <XIcon className="h-5 w-5 text-red-500" />
+        </motion.span>
+      )}
+    </motion.button>
   );
 }
 
@@ -253,9 +323,11 @@ function ProgressHeader({
         <span className="text-slate-500">{answered} terjawab</span>
       </div>
       <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
-        <div
-          className="h-full rounded-full bg-gradient-to-r from-brand-500 to-violet-500 transition-all duration-300"
-          style={{ width: `${pct}%` }}
+        <motion.div
+          className="h-full rounded-full bg-gradient-to-r from-brand-500 to-violet-500"
+          initial={false}
+          animate={{ width: `${pct}%` }}
+          transition={{ type: "spring", stiffness: 120, damping: 20 }}
         />
       </div>
     </div>
@@ -281,18 +353,24 @@ function ResultsScreen({
 
   return (
     <div className="space-y-8">
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white text-center shadow-sm animate-in">
-        <div className="bg-gradient-to-br from-brand-600 to-violet-700 px-6 py-10 text-white">
+      <motion.div
+        initial={{ opacity: 0, y: 20, scale: 0.97 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.6, ease: EASE_OUT }}
+        className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white text-center shadow-sm"
+      >
+        {pct >= 60 && <Confetti />}
+        <div className="relative bg-gradient-to-br from-brand-600 to-violet-700 px-6 py-10 text-white">
           <p className="text-sm font-medium text-brand-100">Sesi selesai!</p>
-          <div className="mx-auto mt-4 grid h-32 w-32 place-items-center rounded-full bg-white/15 backdrop-blur">
-            <div>
-              <div className="text-4xl font-extrabold">{pct}%</div>
-              <div className="text-xs text-brand-100">
-                {score} / {total} benar
-              </div>
-            </div>
-          </div>
-          <h2 className="mt-6 text-2xl font-bold">{title}</h2>
+          <ScoreRing pct={pct} score={score} total={total} />
+          <motion.h2
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+            className="mt-6 text-2xl font-bold"
+          >
+            {title}
+          </motion.h2>
           <p className={cn("mt-1 text-sm", tone)}>{note}</p>
         </div>
 
@@ -301,7 +379,7 @@ function ResultsScreen({
           <Stat label="Salah" value={total - score} valueClass="text-red-600" />
           <Stat label="Total" value={total} valueClass="text-slate-900" />
         </div>
-      </div>
+      </motion.div>
 
       <div className="flex flex-col gap-3 sm:flex-row">
         <Button onClick={onRetry} size="lg" className="w-full">
@@ -321,8 +399,11 @@ function ResultsScreen({
             const correctKey = q.options.find((o) => o.isCorrect)?.optionKey;
             const isCorrect = picked === correctKey;
             return (
-              <details
+              <motion.details
                 key={q.id}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: Math.min(i * 0.04, 0.4), duration: 0.4 }}
                 className="group rounded-xl border border-slate-200 bg-white p-4 [&_summary]:cursor-pointer"
               >
                 <summary className="flex items-start gap-3 list-none">
@@ -358,9 +439,47 @@ function ResultsScreen({
                     <p className="rounded-lg bg-slate-50 p-3 text-slate-600">{q.explanation}</p>
                   )}
                 </div>
-              </details>
+              </motion.details>
             );
           })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ScoreRing({ pct, score, total }: { pct: number; score: number; total: number }) {
+  const reduce = useReducedMotion();
+  const r = 52;
+  const circumference = 2 * Math.PI * r;
+  const offset = circumference * (1 - pct / 100);
+
+  return (
+    <div className="relative mx-auto mt-4 h-36 w-36">
+      <svg viewBox="0 0 120 120" className="h-full w-full -rotate-90">
+        <circle cx="60" cy="60" r={r} fill="none" stroke="rgba(255,255,255,0.18)" strokeWidth="10" />
+        <motion.circle
+          cx="60"
+          cy="60"
+          r={r}
+          fill="none"
+          stroke="white"
+          strokeWidth="10"
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          initial={{ strokeDashoffset: reduce ? offset : circumference }}
+          animate={{ strokeDashoffset: offset }}
+          transition={{ duration: 1.4, ease: EASE_OUT, delay: 0.2 }}
+        />
+      </svg>
+      <div className="absolute inset-0 grid place-items-center">
+        <div>
+          <div className="text-4xl font-extrabold leading-none">
+            <CountUp value={pct} suffix="%" duration={1.4} />
+          </div>
+          <div className="mt-1 text-xs text-brand-100">
+            {score} / {total} benar
+          </div>
         </div>
       </div>
     </div>
@@ -370,7 +489,9 @@ function ResultsScreen({
 function Stat({ label, value, valueClass }: { label: string; value: number; valueClass: string }) {
   return (
     <div className="px-2 py-5">
-      <div className={cn("text-2xl font-bold", valueClass)}>{value}</div>
+      <div className={cn("text-2xl font-bold", valueClass)}>
+        <CountUp value={value} duration={1} />
+      </div>
       <div className="text-xs text-slate-500">{label}</div>
     </div>
   );
@@ -421,7 +542,11 @@ function MessageState({ kind, onRetry }: { kind: "error" | "empty"; onRetry: () 
           body: "Belum ada soal untuk kombinasi materi & kesulitan ini. Coba ubah pilihanmu.",
         };
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center">
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="rounded-2xl border border-slate-200 bg-white p-10 text-center"
+    >
       <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-slate-100 text-slate-400">
         <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth="1.8">
           <circle cx="12" cy="12" r="9" />
@@ -436,7 +561,7 @@ function MessageState({ kind, onRetry }: { kind: "error" | "empty"; onRetry: () 
           Ubah Pilihan
         </ButtonLink>
       </div>
-    </div>
+    </motion.div>
   );
 }
 

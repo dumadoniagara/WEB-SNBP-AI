@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { motion } from "motion/react";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
 import type { Topic, Difficulty } from "@/lib/types";
@@ -70,9 +71,10 @@ export function DrillSetup({ topics }: { topics: Topic[] }) {
         <SectionLabel index={2} title="Tingkat kesulitan" />
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
           {DIFFICULTIES.map((d) => (
-            <button
+            <motion.button
               key={d.value}
               type="button"
+              whileTap={{ scale: 0.96 }}
               onClick={() => setDifficulty(d.value)}
               className={cn(
                 "rounded-xl border p-4 text-left transition-all",
@@ -83,7 +85,7 @@ export function DrillSetup({ topics }: { topics: Topic[] }) {
             >
               <div className="text-sm font-semibold text-slate-900">{d.label}</div>
               <div className="mt-0.5 text-xs text-slate-500">{d.hint}</div>
-            </button>
+            </motion.button>
           ))}
         </div>
       </section>
@@ -93,9 +95,10 @@ export function DrillSetup({ topics }: { topics: Topic[] }) {
         <SectionLabel index={3} title="Jumlah soal" />
         <div className="mt-4 grid grid-cols-4 gap-3">
           {COUNTS.map((c) => (
-            <button
+            <motion.button
               key={c}
               type="button"
+              whileTap={{ scale: 0.96 }}
               onClick={() => setCount(c)}
               className={cn(
                 "rounded-xl border py-4 text-center transition-all",
@@ -106,7 +109,7 @@ export function DrillSetup({ topics }: { topics: Topic[] }) {
             >
               <div className="text-xl font-bold text-slate-900">{c}</div>
               <div className="text-xs text-slate-500">soal</div>
-            </button>
+            </motion.button>
           ))}
         </div>
       </section>
@@ -150,9 +153,10 @@ function SelectCard({
   badge: string;
 }) {
   return (
-    <button
+    <motion.button
       type="button"
       onClick={onClick}
+      whileTap={{ scale: 0.98 }}
       className={cn(
         "flex items-center justify-between gap-3 rounded-xl border p-4 text-left transition-all",
         active
@@ -172,6 +176,6 @@ function SelectCard({
       >
         {badge}
       </span>
-    </button>
+    </motion.button>
   );
 }
